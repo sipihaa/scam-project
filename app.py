@@ -19,6 +19,9 @@ from src.ui.charts import (
     split_hypotheses,
 )
 from src.ui.components import (
+    format_hypotheses,
+    format_period,
+    format_segment,
     hypothesis_cards,
     metric_grid,
     page_header,
@@ -39,17 +42,20 @@ apply_dashboard_style()
 page_header()
 
 
-def active_paths() -> ProjectPaths:
-    return st.session_state.get("active_paths", PATHS)
+def active_paths() -> ProjectPaths | None:
+    paths = st.session_state.get("active_paths")
+    if st.session_state.get("active_source") == "upload" and paths is not None:
+        return paths
+    return None
 
 
 def active_source() -> str:
-    return st.session_state.get("active_source", "project")
+    return st.session_state.get("active_source", "empty")
 
 
-def activate_project_data() -> None:
-    st.session_state["active_paths"] = PATHS
-    st.session_state["active_source"] = "project"
+if active_source() != "upload":
+    st.session_state.pop("active_paths", None)
+    st.session_state["active_source"] = "empty"
     st.session_state["uploaded_names"] = []
 
 
@@ -112,18 +118,111 @@ def filter_by_hypotheses(frame: pd.DataFrame, selected: list[str]) -> pd.DataFra
     ]
 
 
-def render_upload_panel(paths: ProjectPaths) -> None:
+def empty_artifacts() -> dict[str, object]:
+    return {
+        "rules_summary": {},
+        "dashboard": {},
+        "fraud_report": pd.DataFrame(),
+        "ml_summary": {},
+        "inference_summary": {},
+        "new_candidates": pd.DataFrame(),
+        "prod_candidates": pd.DataFrame(),
+        "prod_top_cards": pd.DataFrame(),
+        "model_metrics": pd.DataFrame(),
+        "top_cards": pd.DataFrame(),
+    }
+
+
+def rules_export_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    if frame.empty:
+        return frame
+    rows = []
+    for _, row in frame.iterrows():
+        entity_type = row.get("entity_type")
+        rows.append(
+            {
+                "Тип объекта": "Карта" if entity_type == "card" else "Валидатор",
+                "Идентификатор": row.get("entity_id"),
+                "Нарушений": row.get("total_violations"),
+                "Гипотез": row.get("total_unique_hypotheses"),
+                "Тип нарушения": format_hypotheses(row.get("hypotheses")),
+                "Риск": row.get("risk_score"),
+                "Период": format_period(row.get("first_seen"), row.get("last_seen")),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def ml_export_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    if frame.empty:
+        return frame
+    rename_map = {
+        "card_id": "Номер карты",
+        "rank": "Ранг",
+        "anomaly_score": "Оценка ML",
+        "tx_count": "Поездок",
+        "active_days": "Активных дней",
+        "unique_routes": "Маршрутов",
+        "unique_terminals": "Валидаторов",
+        "segment": "Сегмент",
+        "model": "Модель",
+        "ml_fraud_flag": "ML-флаг",
+    }
+    columns = [column for column in rename_map if column in frame.columns]
+    export = frame[columns].rename(columns=rename_map)
+    if "Сегмент" in export.columns:
+        export["Сегмент"] = export["Сегмент"].apply(format_segment)
+    return export
+
+
+def csv_bytes(frame: pd.DataFrame) -> bytes:
+    return frame.to_csv(index=False).encode("utf-8-sig")
+
+
+def render_download_button(label: str, frame: pd.DataFrame, file_name: str, key: str) -> None:
+    st.download_button(
+        label,
+        data=csv_bytes(frame),
+        file_name=file_name,
+        mime="text/csv",
+        width="stretch",
+        disabled=frame.empty,
+        key=key,
+    )
+
+
+def render_action_group(title: str, frame: pd.DataFrame, entity_type: str, file_name: str, key: str) -> None:
+    with st.expander(f"{title}: {len(frame)}"):
+        if frame.empty:
+            st.info("В этой группе объектов нет.")
+            return
+        sorted_frame = frame.sort_values(["risk_score", "total_violations"], ascending=False)
+        render_download_button(
+            "Скачать полный список",
+            rules_export_frame(sorted_frame),
+            file_name,
+            key,
+        )
+        render_entity_table(
+            sorted_frame,
+            entity_type,
+            limit=20,
+        )
+        st.caption("В таблице показаны первые 20 объектов. Полный список можно скачать CSV-файлом.")
+
+
+def render_upload_panel(paths: ProjectPaths | None) -> None:
     with st.container(border=True):
         panel("📁 Загрузите отчёт")
         uploaded_files = st.file_uploader(
             "📂 Нажмите или перетащите CSV-файлы транзакций",
             type=["csv"],
             accept_multiple_files=True,
-            help="Можно загрузить один или несколько CSV. Файлы проекта в data/raw не изменяются.",
+            help="Можно загрузить один или несколько CSV. Анализ запускается только по загруженным файлам.",
         )
-        has_active_upload = active_source() == "upload" and paths.raw_data.exists()
+        has_active_upload = active_source() == "upload" and paths is not None and paths.raw_data.exists()
 
-        left, middle, right = st.columns([1.2, 1.2, 1])
+        left, middle = st.columns(2)
         with left:
             run_rules = st.button(
                 "Анализировать правилами",
@@ -137,14 +236,10 @@ def render_upload_panel(paths: ProjectPaths) -> None:
                 width="stretch",
                 disabled=not uploaded_files and not has_active_upload,
             )
-        with right:
-            if st.button("Вернуться к data/raw", width="stretch"):
-                activate_project_data()
-                st.rerun()
 
         if run_rules and uploaded_files:
             result = run_action(
-                "Запускаю rule-анализ загруженных CSV...",
+                "Запускаю анализ правилами для загруженных CSV...",
                 lambda: analyze_uploaded_files(uploaded_files, with_ml=False),
             )
             if result is not None:
@@ -152,12 +247,12 @@ def render_upload_panel(paths: ProjectPaths) -> None:
         if run_full:
             if uploaded_files:
                 result = run_action(
-                    "Запускаю rule-анализ и ML-инференс по загруженным CSV. ML может занять пару минут на больших файлах...",
+                    "Запускаю анализ правилами и ML-проверку загруженных CSV. Это может занять пару минут на больших файлах...",
                     lambda: analyze_uploaded_files(uploaded_files, with_ml=True),
                 )
             elif has_active_upload:
                 result = run_action(
-                    "Запускаю ML-инференс по активному загруженному набору...",
+                    "Запускаю ML-проверку активного загруженного набора...",
                     lambda: run_ml_for_paths(paths),
                 )
             else:
@@ -170,26 +265,26 @@ def render_upload_panel(paths: ProjectPaths) -> None:
             names = ", ".join(st.session_state.get("uploaded_names", []))
             st.success(f"✅ Активный набор: загруженные файлы ({names})")
         else:
-            st.info("Активный набор: файлы проекта из data/raw")
+            st.info("Загрузите CSV-файлы, чтобы построить дашборд.")
 
 
 paths = active_paths()
 render_upload_panel(paths)
 
-artifacts = load_artifacts(paths)
+artifacts = load_artifacts(paths) if paths is not None else empty_artifacts()
 report = artifacts["fraud_report"]
 dashboard = artifacts["dashboard"]
 rules_summary = artifacts["rules_summary"]
 ml_summary = artifacts["ml_summary"]
 inference_summary = artifacts["inference_summary"]
 
-rules_tab, ml_tab = st.tabs(["Дашборд правил", "ML discovery"])
+rules_tab, ml_tab = st.tabs(["Дашборд правил", "ML-поиск"])
 
 with rules_tab:
     if report.empty:
         with st.container(border=True):
             panel("📊 Общая статистика")
-            st.info("Загрузите CSV и запустите анализ или вернитесь к уже подготовленным файлам из data/raw.")
+            st.info("Загрузите CSV и запустите анализ, чтобы построить дашборд.")
     else:
         cards = report[report["entity_type"].eq("card")]
         validators = report[report["entity_type"].eq("validator")]
@@ -208,15 +303,16 @@ with rules_tab:
 
         with st.container(border=True):
             panel("📈 Визуализация аномалий")
-            chart1, chart2, chart3 = st.columns(3)
+            chart1, chart2 = st.columns(2)
             with chart1:
                 st.markdown('<div class="chart-caption">Количество карт по уровню риска</div>', unsafe_allow_html=True)
                 st.altair_chart(risk_histogram_chart(report), use_container_width=True)
             with chart2:
                 st.markdown('<div class="chart-caption">Количество аномалий по гипотезам</div>', unsafe_allow_html=True)
                 st.altair_chart(hypothesis_bar_chart(report), use_container_width=True)
+            _, chart3, _ = st.columns([0.25, 0.5, 0.25])
             with chart3:
-                st.markdown('<div class="chart-caption">Доля карт по уровню риска</div>', unsafe_allow_html=True)
+                st.markdown('<div class="chart-caption chart-caption-wide">Доля карт по уровню риска</div>', unsafe_allow_html=True)
                 st.altair_chart(risk_donut_chart(report), use_container_width=True)
 
         with st.container(border=True):
@@ -227,6 +323,7 @@ with rules_tab:
                 "Фильтр по гипотезам",
                 options=hypothesis_counts["hypothesis"].tolist(),
                 format_func=lambda value: HYPOTHESIS_NAMES.get(value, value),
+                placeholder="Выберите гипотезы",
             )
         filtered = filter_by_hypotheses(report, selected)
 
@@ -250,8 +347,11 @@ with rules_tab:
 
         with st.container(border=True):
             panel("📋 Что делать?")
-            high_risk_cards = int(cards["risk_score"].ge(70).sum()) if not cards.empty else 0
-            medium_risk_cards = int(cards["risk_score"].between(40, 69.999).sum()) if not cards.empty else 0
+            high_risk_card_rows = cards[cards["risk_score"].ge(70)] if not cards.empty else cards
+            medium_risk_card_rows = cards[cards["risk_score"].between(40, 69.999)] if not cards.empty else cards
+            validator_rows = validators.copy()
+            high_risk_cards = len(high_risk_card_rows)
+            medium_risk_cards = len(medium_risk_card_rows)
             if high_risk_cards:
                 recommendation_strong("Срочно:", f"{high_risk_cards} карт с высоким риском требуют проверки", "🔴")
             if medium_risk_cards:
@@ -260,13 +360,33 @@ with rules_tab:
                 recommendation_strong("Техническая проверка:", f"{len(validators)} валидаторов с аномалиями", "🔧")
             if not high_risk_cards and not medium_risk_cards and validators.empty:
                 recommendation_strong("Готово:", "аномалий не обнаружено", "✅")
+            render_action_group(
+                "Карты с высоким риском",
+                high_risk_card_rows,
+                "card",
+                "cards_high_risk.csv",
+                "download_high_risk_cards",
+            )
+            render_action_group(
+                "Карты со средним риском",
+                medium_risk_card_rows,
+                "card",
+                "cards_medium_risk.csv",
+                "download_medium_risk_cards",
+            )
+            render_action_group(
+                "Валидаторы с аномалиями",
+                validator_rows,
+                "validator",
+                "validators_with_anomalies.csv",
+                "download_validators",
+            )
 
 with ml_tab:
     prod_candidates = artifacts["prod_candidates"]
-    prod_top_cards = artifacts["prod_top_cards"]
 
     with st.container(border=True):
-        panel("🤖 ML discovery")
+        panel("🤖 ML-поиск")
         metric_grid(
             [
                 ("Карт с признаками", ml_summary.get("features", "—")),
@@ -277,11 +397,11 @@ with ml_tab:
         )
         st.caption(
             "ML ищет нетипичные карты поверх уже рассчитанных признаков. "
-            "Для загруженных CSV используйте кнопку «Правила + ML», для текущего набора можно запустить только ML."
+            "Для загруженных CSV используйте кнопку «Правила + ML», для уже активного загруженного набора можно запустить только ML."
         )
-        if st.button("Запустить ML для активного набора", width="stretch"):
+        if st.button("Запустить ML для активного набора", width="stretch", disabled=paths is None):
             result = run_action(
-                "Строю признаки и запускаю ML-инференс...",
+                "Строю признаки и запускаю ML-проверку...",
                 lambda: run_ml_for_paths(paths),
             )
             if result is not None:
@@ -289,19 +409,24 @@ with ml_tab:
 
     with st.container(border=True):
         panel("📈 ML-визуализация")
-        chart1, chart2 = st.columns(2)
-        ml_chart_source = prod_top_cards if not prod_top_cards.empty else prod_candidates
-        with chart1:
-            st.markdown('<div class="chart-caption">Распределение ML-оценки</div>', unsafe_allow_html=True)
-            st.altair_chart(ml_score_chart(ml_chart_source), use_container_width=True)
-        with chart2:
-            st.markdown('<div class="chart-caption">Сегменты подозрительных карт</div>', unsafe_allow_html=True)
-            st.altair_chart(ml_segments_chart(ml_chart_source), use_container_width=True)
+        ml_chart_source = prod_candidates
+        if ml_chart_source.empty:
+            st.info("Запустите «Правила + ML», чтобы построить ML-графики.")
+        else:
+            chart1, chart2 = st.columns(2)
+            with chart1:
+                st.markdown('<div class="chart-caption">Распределение ML-оценки</div>', unsafe_allow_html=True)
+                st.altair_chart(ml_score_chart(ml_chart_source), use_container_width=True)
+            with chart2:
+                st.markdown('<div class="chart-caption">Сегменты подозрительных карт</div>', unsafe_allow_html=True)
+                st.altair_chart(ml_segments_chart(ml_chart_source), use_container_width=True)
 
     with st.container(border=True):
         panel("🧭 Кандидаты на новые паттерны")
+        render_download_button(
+            "Скачать полный список новых кандидатов",
+            ml_export_frame(prod_candidates),
+            "ml_new_pattern_candidates.csv",
+            "download_ml_candidates",
+        )
         render_ml_table(prod_candidates, limit=20)
-
-    with st.container(border=True):
-        panel("🏁 Топ карт выбранной модели")
-        render_ml_table(prod_top_cards, limit=50)

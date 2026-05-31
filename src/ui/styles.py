@@ -43,6 +43,8 @@ def apply_dashboard_style() -> None:
         .block-container {
             max-width: 1400px;
             padding-top: 0;
+            padding-left: 2rem;
+            padding-right: 2rem;
             padding-bottom: 32px;
         }
         .main-header {
@@ -71,6 +73,33 @@ def apply_dashboard_style() -> None:
             background: #fafbff;
             padding: 24px;
         }
+        [data-testid="stFileUploaderDropzone"] button {
+            min-width: 132px;
+            font-size: 0 !important;
+            position: relative;
+        }
+        [data-testid="stFileUploaderDropzone"] button::after {
+            content: "Выбрать файл";
+            font-size: 0.9rem;
+            color: #111111;
+            white-space: nowrap;
+        }
+        [data-testid="stFileUploaderDropzone"] button + div {
+            font-size: 0 !important;
+        }
+        [data-testid="stFileUploaderDropzone"] button + div::after {
+            content: "до 200 МБ • CSV";
+            font-size: 0.88rem;
+            color: #6b7280;
+        }
+        [data-testid="stFileUploaderDropzone"] small {
+            font-size: 0 !important;
+        }
+        [data-testid="stFileUploaderDropzone"] small::after {
+            content: "до 200 МБ • CSV";
+            font-size: 0.88rem;
+            color: #6b7280;
+        }
         [data-testid="stFileUploaderDropzone"]:hover {
             border-color: var(--primary);
             background: #f0f7ff;
@@ -89,17 +118,18 @@ def apply_dashboard_style() -> None:
         div[data-testid="stVerticalBlockBorderWrapper"] {
             background: var(--card-bg);
             border-radius: 16px;
-            padding: 0;
-            margin-bottom: 22px;
+            padding: 24px 26px 28px 26px !important;
+            margin: 0 0 24px 0;
             box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            border: 1px solid rgba(224,224,224,0.6);
+            border: 1px solid rgba(224,224,224,0.95);
+            overflow: visible !important;
         }
         div[data-testid="stVerticalBlockBorderWrapper"] > div {
-            padding: 24px;
+            padding: 0 !important;
         }
         .panel-title {
             font-size: 1.25rem;
-            margin-bottom: 20px;
+            margin: 0 0 22px 0;
             color: var(--primary);
             font-weight: 700;
             border-left: 4px solid var(--primary);
@@ -108,39 +138,48 @@ def apply_dashboard_style() -> None:
         }
         .kpi-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 20px;
+            margin-bottom: 2px;
         }
         .kpi-card {
             background: #ffffff;
-            padding: 20px;
+            padding: 20px 16px;
             border-radius: 12px;
             text-align: center;
             border: 1px solid var(--border);
+            min-height: 132px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
         .kpi-value {
-            font-size: 2.2rem;
+            font-size: 2rem;
             font-weight: 800;
-            margin: 10px 0;
+            margin: 0 0 10px 0;
             color: var(--primary);
             letter-spacing: 0;
+            line-height: 1.1;
         }
         .kpi-label {
             color: #111111;
-            font-size: 0.98rem;
+            font-size: 0.96rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
         }
         .hypotheses-grid {
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 12px;
+            gap: 14px;
+            margin: 0 0 18px 0;
         }
         .hypothesis-card {
             background: var(--primary-light);
-            padding: 12px 14px;
+            padding: 14px 16px;
             border-radius: 12px;
-            min-width: 140px;
-            min-height: 86px;
+            min-width: 158px;
+            min-height: 92px;
             border: 2px solid transparent;
             text-align: center;
             transition: all 0.2s ease;
@@ -160,20 +199,33 @@ def apply_dashboard_style() -> None:
             font-size: 0.85rem;
             color: #555555;
             margin-top: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            line-height: 1.25;
         }
         .chart-caption {
             color: #666666;
             font-size: 0.88rem;
             font-weight: 650;
-            margin-bottom: 6px;
+            margin: 0 0 8px 0;
             text-align: center;
+            min-height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .chart-caption-wide {
+            margin-top: 18px;
         }
         div[data-testid="stVegaLiteChart"] {
             background: #fafafa;
             border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 12px;
-            overflow: hidden;
+            padding: 14px;
+            overflow: visible !important;
+            min-height: 292px;
         }
         .recommendation-card {
             background: #fff3e0;
@@ -208,7 +260,7 @@ def apply_dashboard_style() -> None:
         .table-wrap {
             border: 1px solid var(--border);
             border-radius: 12px;
-            overflow: hidden;
+            overflow-x: auto;
             background: #ffffff;
         }
         .dashboard-table {
@@ -236,19 +288,57 @@ def apply_dashboard_style() -> None:
             color: #111111;
             background: transparent;
             padding: 0;
-            white-space: nowrap;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            line-height: 1.35;
+        }
+        .id-cell {
+            min-width: 210px;
+            max-width: 320px;
         }
         .wide-cell {
             max-width: 360px;
+            min-width: 260px;
+            line-height: 1.35;
+        }
+        [data-testid="stExpander"] {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: #ffffff;
+            margin-top: 12px;
+            overflow: hidden;
+        }
+        [data-testid="stExpander"] details {
+            padding: 2px 4px 8px 4px;
+        }
+        [data-testid="stExpander"] summary {
+            color: var(--primary);
+            font-weight: 700;
         }
         div[data-testid="stDataFrame"] {
             border: 1px solid var(--border);
             border-radius: 12px;
             overflow: hidden;
         }
+        @media (max-width: 1150px) {
+            .kpi-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
         @media (max-width: 900px) {
+            .block-container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
             .main-header {
                 padding: 18px 22px;
+            }
+            div[data-testid="stVerticalBlockBorderWrapper"] {
+                padding: 18px !important;
+            }
+            .kpi-grid {
+                grid-template-columns: 1fr;
             }
             .dashboard-table {
                 min-width: 760px;

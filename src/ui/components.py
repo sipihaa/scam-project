@@ -74,7 +74,7 @@ def hypothesis_cards(counts: pd.DataFrame) -> None:
         cards.append(
             '<div class="hypothesis-card">'
             f'<div class="hypothesis-count">{format_number(row["count"])}</div>'
-            f'<div class="hypothesis-name">{escape(icon)} {escape(label)}</div>'
+            f'<div class="hypothesis-name"><span>{escape(icon)}</span><span>{escape(label)}</span></div>'
             "</div>"
         )
     st.markdown(f'<div class="hypotheses-grid">{"".join(cards)}</div>', unsafe_allow_html=True)
@@ -164,6 +164,17 @@ def format_hypotheses(value: object) -> str:
     return ", ".join(labels)
 
 
+def format_segment(value: object) -> str:
+    text = _safe_value(value)
+    segment_names = {
+        "other": "Прочее",
+        "201": "Категория 201",
+        "203": "Категория 203",
+        "204": "Категория 204",
+    }
+    return segment_names.get(text, text)
+
+
 def render_entity_table(frame: pd.DataFrame, entity_type: str, limit: int = 20) -> None:
     if frame.empty:
         st.info("Данных пока нет.")
@@ -173,9 +184,10 @@ def render_entity_table(frame: pd.DataFrame, entity_type: str, limit: int = 20) 
     rows = []
     for _, row in frame.head(limit).iterrows():
         risk, risk_level = format_risk(row.get("risk_score"))
+        entity_id = _safe_value(row.get("entity_id"))
         rows.append(
             "<tr>"
-            f'<td><code>{escape(short_id(row.get("entity_id")))}</code></td>'
+            f'<td class="id-cell"><code>{escape(entity_id)}</code></td>'
             f'<td>{format_number(row.get("total_violations", 0))}</td>'
             f'<td class="wide-cell">{escape(format_hypotheses(row.get("hypotheses")))}</td>'
             f'<td class="risk-{risk_level}">{escape(risk)}</td>'
@@ -196,7 +208,7 @@ def render_entity_table(frame: pd.DataFrame, entity_type: str, limit: int = 20) 
 
 def render_ml_table(frame: pd.DataFrame, limit: int = 20) -> None:
     if frame.empty:
-        st.info("Данных пока нет. Запустите ML-инференс для активного набора.")
+        st.info("Данных пока нет. Запустите ML-проверку для активного набора.")
         return
 
     rows = []
@@ -206,16 +218,17 @@ def render_ml_table(frame: pd.DataFrame, limit: int = 20) -> None:
             score_text = f"{float(score):.3f}".replace(".", ",")
         except (TypeError, ValueError):
             score_text = "—"
+        card_id = _safe_value(row.get("card_id"))
         rows.append(
             "<tr>"
-            f'<td><code>{escape(short_id(row.get("card_id")))}</code></td>'
+            f'<td class="id-cell"><code>{escape(card_id)}</code></td>'
             f'<td>{format_number(row.get("rank", "—"))}</td>'
             f'<td class="risk-high">{escape(score_text)}</td>'
             f'<td>{format_number(row.get("tx_count", "—"))}</td>'
             f'<td>{format_number(row.get("active_days", "—"))}</td>'
             f'<td>{format_number(row.get("unique_routes", "—"))}</td>'
             f'<td>{format_number(row.get("unique_terminals", "—"))}</td>'
-            f'<td>{escape(_safe_value(row.get("segment")))}</td>'
+            f'<td>{escape(format_segment(row.get("segment")))}</td>'
             "</tr>"
         )
 

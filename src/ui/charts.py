@@ -25,6 +25,12 @@ WARNING = "#FFA726"
 DANGER = "#D32F2F"
 SUCCESS = "#4CAF50"
 BORDER = "#e0e0e0"
+SEGMENT_NAMES = {
+    "other": "Прочее",
+    "201": "Категория 201",
+    "203": "Категория 203",
+    "204": "Категория 204",
+}
 
 
 def split_hypotheses(report: pd.DataFrame) -> pd.DataFrame:
@@ -94,8 +100,10 @@ def _base_config(chart: alt.Chart) -> alt.Chart:
             titleColor="#555555",
             labelFont="Segoe UI",
             titleFont="Segoe UI",
+            labelFontSize=11,
+            titleFontSize=11,
         )
-        .configure_legend(labelFont="Segoe UI", titleFont="Segoe UI", orient="bottom")
+        .configure_legend(labelFont="Segoe UI", titleFont="Segoe UI", labelFontSize=11, titleFontSize=11, orient="bottom")
         .configure_view(stroke=BORDER)
     )
 
@@ -113,7 +121,7 @@ def risk_histogram_chart(report: pd.DataFrame) -> alt.Chart:
                 alt.Tooltip("count:Q", title="Количество карт", format=","),
             ],
         )
-        .properties(height=260)
+        .properties(height=230)
     )
     return _base_config(chart)
 
@@ -131,7 +139,7 @@ def hypothesis_bar_chart(report: pd.DataFrame, limit: int = 6) -> alt.Chart:
                 alt.Tooltip("count:Q", title="Количество аномалий", format=","),
             ],
         )
-        .properties(height=260)
+        .properties(height=230)
     )
     return _base_config(chart)
 
@@ -146,7 +154,7 @@ def risk_donut_chart(report: pd.DataFrame) -> alt.Chart:
     data["order"] = data["risk_level"].astype(str).map(order)
     chart = (
         alt.Chart(data)
-        .mark_arc(innerRadius=70, outerRadius=120, stroke="#ffffff", strokeWidth=3)
+        .mark_arc(innerRadius=46, outerRadius=82, stroke="#ffffff", strokeWidth=3)
         .encode(
             theta=alt.Theta("count:Q"),
             color=alt.Color(
@@ -156,7 +164,7 @@ def risk_donut_chart(report: pd.DataFrame) -> alt.Chart:
                     domain=["Высокий (>=70)", "Средний (40-69)", "Низкий (<40)"],
                     range=[DANGER, WARNING, SUCCESS],
                 ),
-                legend=alt.Legend(orient="bottom", columns=1),
+                legend=alt.Legend(orient="bottom", columns=1, labelLimit=240),
             ),
             order=alt.Order("order:Q", sort="ascending"),
             tooltip=[
@@ -164,7 +172,7 @@ def risk_donut_chart(report: pd.DataFrame) -> alt.Chart:
                 alt.Tooltip("count:Q", title="Количество карт", format=","),
             ],
         )
-        .properties(height=260)
+        .properties(height=220)
     )
     return _base_config(chart)
 
@@ -182,7 +190,7 @@ def ml_score_chart(frame: pd.DataFrame) -> alt.Chart:
             y=alt.Y("count():Q", title="", axis=alt.Axis(format=",.0f")),
             tooltip=[alt.Tooltip("count():Q", title="Количество карт", format=",")],
         )
-        .properties(height=250)
+        .properties(height=230)
     )
     return _base_config(chart)
 
@@ -193,17 +201,18 @@ def ml_segments_chart(frame: pd.DataFrame) -> alt.Chart:
     else:
         data = frame.groupby("segment", dropna=False).size().reset_index(name="count").sort_values("count", ascending=False)
         data["segment"] = data["segment"].fillna("—").astype(str)
+        data["segment_label"] = data["segment"].map(SEGMENT_NAMES).fillna(data["segment"])
     chart = (
         alt.Chart(data.head(8))
         .mark_bar(color=WARNING, cornerRadiusTopRight=8, cornerRadiusBottomRight=8)
         .encode(
-            y=alt.Y("segment:N", title="", sort="-x"),
+            y=alt.Y("segment_label:N", title="", sort="-x"),
             x=alt.X("count:Q", title="", axis=alt.Axis(format=",.0f")),
             tooltip=[
-                alt.Tooltip("segment:N", title="Сегмент"),
+                alt.Tooltip("segment_label:N", title="Сегмент"),
                 alt.Tooltip("count:Q", title="Количество карт", format=","),
             ],
         )
-        .properties(height=250)
+        .properties(height=230)
     )
     return _base_config(chart)
