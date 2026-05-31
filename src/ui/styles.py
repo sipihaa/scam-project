@@ -227,6 +227,73 @@ def apply_dashboard_style() -> None:
             overflow: visible !important;
             min-height: 292px;
         }
+        .donut-card {
+            background: #fafafa;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 18px;
+            min-height: 236px;
+            display: grid;
+            grid-template-columns: minmax(150px, 0.9fr) minmax(170px, 1.1fr);
+            gap: 14px;
+            align-items: center;
+            overflow: hidden;
+        }
+        .donut-svg {
+            width: 100%;
+            max-width: 210px;
+            height: auto;
+            justify-self: center;
+            display: block;
+        }
+        .donut-svg circle {
+            vector-effect: non-scaling-stroke;
+        }
+        .donut-total {
+            fill: var(--primary);
+            font-size: 1.2rem;
+            font-weight: 800;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        .donut-total-label {
+            fill: #6b7280;
+            font-size: 0.7rem;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        .donut-legend {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            color: #4b5563;
+            font-size: 0.9rem;
+            min-width: 0;
+        }
+        .donut-legend-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            min-width: 0;
+        }
+        .donut-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            line-height: 1.25;
+        }
+        .donut-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            display: inline-block;
+            flex: 0 0 auto;
+        }
+        .donut-value {
+            color: #111111;
+            font-weight: 700;
+            white-space: nowrap;
+        }
         .recommendation-card {
             background: #fff3e0;
             border-left: 4px solid var(--warning);
@@ -345,6 +412,12 @@ def apply_dashboard_style() -> None:
             }
             .table-wrap {
                 overflow-x: auto;
+            }
+            .donut-card {
+                grid-template-columns: 1fr;
+            }
+            .donut-legend-row {
+                justify-content: center;
             }
         }
         </style>

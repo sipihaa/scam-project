@@ -14,7 +14,6 @@ from src.ui.charts import (
     hypothesis_bar_chart,
     ml_score_chart,
     ml_segments_chart,
-    risk_donut_chart,
     risk_histogram_chart,
     split_hypotheses,
 )
@@ -28,6 +27,7 @@ from src.ui.components import (
     panel,
     recommendation_strong,
     render_entity_table,
+    render_risk_donut,
     render_ml_table,
 )
 from src.ui.styles import apply_dashboard_style
@@ -313,7 +313,7 @@ with rules_tab:
             _, chart3, _ = st.columns([0.25, 0.5, 0.25])
             with chart3:
                 st.markdown('<div class="chart-caption chart-caption-wide">Доля карт по уровню риска</div>', unsafe_allow_html=True)
-                st.altair_chart(risk_donut_chart(report), use_container_width=True)
+                render_risk_donut(report)
 
         with st.container(border=True):
             panel("🔍 Что мы искали")

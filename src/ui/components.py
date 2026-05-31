@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from html import escape
 from typing import Iterable
 
@@ -24,6 +25,38 @@ HYPOTHESIS_ICONS = {
     "H20": "📄",
     "H21": "📉",
 }
+
+
+def _donut_point(cx: float, cy: float, radius: float, angle: float) -> tuple[float, float]:
+    radians = math.radians(angle - 90)
+    return cx + radius * math.cos(radians), cy + radius * math.sin(radians)
+
+
+def _donut_sector_path(
+    cx: float,
+    cy: float,
+    inner_radius: float,
+    outer_radius: float,
+    start_angle: float,
+    end_angle: float,
+) -> str:
+    if end_angle - start_angle >= 359.99:
+        first = _donut_sector_path(cx, cy, inner_radius, outer_radius, 0, 180)
+        second = _donut_sector_path(cx, cy, inner_radius, outer_radius, 180, 360)
+        return f"{first} {second}"
+
+    outer_start = _donut_point(cx, cy, outer_radius, start_angle)
+    outer_end = _donut_point(cx, cy, outer_radius, end_angle)
+    inner_end = _donut_point(cx, cy, inner_radius, end_angle)
+    inner_start = _donut_point(cx, cy, inner_radius, start_angle)
+    large_arc = 1 if end_angle - start_angle > 180 else 0
+    return (
+        f"M {outer_start[0]:.3f} {outer_start[1]:.3f} "
+        f"A {outer_radius} {outer_radius} 0 {large_arc} 1 {outer_end[0]:.3f} {outer_end[1]:.3f} "
+        f"L {inner_end[0]:.3f} {inner_end[1]:.3f} "
+        f"A {inner_radius} {inner_radius} 0 {large_arc} 0 {inner_start[0]:.3f} {inner_start[1]:.3f} "
+        "Z"
+    )
 
 
 def page_header() -> None:
@@ -59,6 +92,66 @@ def metric_grid(metrics: Iterable[tuple[str, object]]) -> None:
             "</div>"
         )
     st.markdown(f'<div class="kpi-grid">{"".join(cards)}</div>', unsafe_allow_html=True)
+
+
+def render_risk_donut(report: pd.DataFrame) -> None:
+    if report.empty or "risk_score" not in report:
+        st.info("Недостаточно данных для диаграммы риска.")
+        return
+
+    cards = report[report["entity_type"].eq("card")] if "entity_type" in report else report
+    scores = pd.to_numeric(cards["risk_score"], errors="coerce").dropna()
+    high = int(scores.ge(70).sum())
+    medium = int(scores.ge(40).sum() - scores.ge(70).sum())
+    low = int(scores.lt(40).sum())
+    total = high + medium + low
+    if total == 0:
+        st.info("Нет карт с рассчитанным уровнем риска.")
+        return
+
+    segments = [
+        ("Высокий (≥70)", high, "#D32F2F"),
+        ("Средний (40-69)", medium, "#FFA726"),
+        ("Низкий (<40)", low, "#4CAF50"),
+    ]
+    start_angle = 0.0
+    paths = []
+    non_zero_segments = [(label, count, color) for label, count, color in segments if count]
+    for index, (_, count, color) in enumerate(non_zero_segments):
+        share = count / total
+        end_angle = 360.0 if index == len(non_zero_segments) - 1 else start_angle + share * 360
+        draw_end_angle = min(360.0, end_angle + 0.08)
+        path = _donut_sector_path(94, 88, 41, 67, start_angle, draw_end_angle)
+        paths.append(f'<path d="{path}" fill="{color}" fill-rule="evenodd"></path>')
+        start_angle = end_angle
+
+    legend_rows = []
+    for label, count, color in segments:
+        share = count / total
+        percent = f"{share * 100:.1f}".replace(".", ",")
+        legend_rows.append(
+            '<div class="donut-legend-row">'
+            f'<div class="donut-label"><span class="donut-dot" style="background:{color}"></span>'
+            f'<span>{escape(label)}</span></div>'
+            f'<div class="donut-value">{format_number(count)} · {percent}%</div>'
+            "</div>"
+        )
+
+    html = (
+        '<div class="donut-card">'
+        '<svg class="donut-svg" viewBox="0 0 188 176" role="img" '
+        'aria-label="Доля карт по уровню риска">'
+        '<circle cx="94" cy="88" r="67" fill="#eef2f7"></circle>'
+        '<circle cx="94" cy="88" r="41" fill="#fafafa"></circle>'
+        f'{"".join(paths)}'
+        '<circle cx="94" cy="88" r="41" fill="#fafafa"></circle>'
+        f'<text x="94" y="83" text-anchor="middle" class="donut-total">{format_number(total)}</text>'
+        '<text x="94" y="103" text-anchor="middle" class="donut-total-label">карт</text>'
+        "</svg>"
+        f'<div class="donut-legend">{"".join(legend_rows)}</div>'
+        "</div>"
+    )
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def hypothesis_cards(counts: pd.DataFrame) -> None:
