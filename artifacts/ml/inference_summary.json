@@ -1,0 +1,16 @@
+{
+  "model_name": "discovery_iforest_global",
+  "features_path": "/Users/vladm/UnikSource/6Semestr/ПД/scam-project/artifacts/ml/features.csv",
+  "model_path": "/Users/vladm/UnikSource/6Semestr/ПД/scam-project/artifacts/ml/discovery_model.pkl",
+  "scored_cards": 124380,
+  "top_percent": 0.01,
+  "top_cards": 1244,
+  "known_fraud_excluded": 702,
+  "new_pattern_candidates": 542,
+  "outputs": [
+    "inference_scores.csv",
+    "prod_top_percent_cards.csv",
+    "prod_new_candidates.csv",
+    "inference_summary.json"
+  ]
+}

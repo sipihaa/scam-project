@@ -1,0 +1,29 @@
+{
+  "stage": "rules",
+  "transactions": 1426990,
+  "period_start": "2023-05-09T05:08:48",
+  "period_end": "2023-05-25T23:05:08",
+  "cards": 124485,
+  "validators": 371,
+  "routes": 83,
+  "categories": 12,
+  "entities": 8291,
+  "total_anomalies": 134792,
+  "fraud_report": "/Users/vladm/UnikSource/6Semestr/ПД/scam-project/artifacts/rules/fraud_report.csv",
+  "dashboard_json": "/Users/vladm/UnikSource/6Semestr/ПД/scam-project/artifacts/rules/dashboard_data.json",
+  "hypotheses": {
+    "H1": 10497,
+    "H2": 0,
+    "H3": 121860,
+    "H4": 60,
+    "H7": 2272,
+    "H8": 26,
+    "H10": 1,
+    "H11": 41,
+    "H12": 33,
+    "H17": 0,
+    "H19": 1,
+    "H20": 0,
+    "H21": 1
+  }
+}

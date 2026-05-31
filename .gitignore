@@ -1,0 +1,13 @@
+.DS_Store
+.venv/
+__pycache__/
+*.py[cod]
+.ruff_cache/
+
+# Raw customer files and generated reports
+*.csv
+data/labels/
+reports/
+
+Модель ML/
+Работа с гипотезами и дашборд/
